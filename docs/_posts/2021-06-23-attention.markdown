@@ -2,7 +2,7 @@
 layout: post
 title: "自然语言模型中的Attention机制"
 date: 2021-06-23 16:28:00 +0800
-categories: CATEGORY-1 CATEGORY-2
+categories: NPL
 ---
 
 很多自然语言模型都基于Transformer架构，比如BERT, GPT等。而Attention机制是Transformer架构重要的组成部分。那什么是Attention机制呢？以下用Scaled Dot-Product Attention为例讨论。
@@ -42,7 +42,7 @@ $$
 
 # Multi-Head Attention
 
-单个Attention机制中，没有可以学习的参数，对给定的输入，输出结果是不变的。使用Multi-Head Attention可以实现学习的机制。
+单个Attention机制没有可以学习的参数，对给定的输入，其输出结果是不变的。使用Multi-Head Attention可以实现学习的机制。
 
 {% raw %}
 $$
@@ -57,4 +57,4 @@ $$
 
 在Transformer模型中，长度为sequence_len的输入文本通过Embedding层后，输出形状为(sequence_len, $d_{\mathrm{model}}$)的矩阵$X$，每个词对应于一个$d_{\mathrm{model}}$维的向量。在调用Multi-Head Attention时，将Q, K, V参数都设为$X$，$\mathrm{MultiHead}(X, X, X)$。这就是Self-Attention。
 
-在BERT中，除了Self-Attention过程，词和词之间是没有耦合的，因此Self-Attention可以理解为学习文本上下文的机制。
+在BERT中，除了Self-Attention过程，词和词之间是没有耦合的，Self-Attention可以理解为学习文本上下文的机制。
