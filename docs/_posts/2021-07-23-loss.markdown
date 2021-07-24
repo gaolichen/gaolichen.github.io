@@ -1,0 +1,126 @@
+---
+layout: post
+title: "Tensorflow损失函数的一个易错点"
+date: 2021-06-23 16:28:00 +0800
+categories: machine-learning
+---
+
+深度学习框架中，损失函数的使用非常简单。Tensorflow/keras的损失函数既接受Tensor类型参数，也接受numpy数组参数，甚至接受Tensor和numpy混用。
+
+<br/>
+
+# 例子
+损失函数的使用如下：
+
+```python
+import tensorflow as tf
+
+a = tf.constant([1.5, 1.0, 2.0], dtype = 'float32')
+b = tf.constant([1.0, 2.0, 3.0], dtype = 'float32')
+mse = tf.keras.losses.MeanSquaredError()
+
+print(mse(a, b)) # 输出 tf.Tensor(0.75, shape=(), dtype=float32)
+print(mse(a.numpy(), b.numpy())) # 输出 tf.Tensor(0.75, shape=(), dtype=float32)
+print(mse(a.numpy(), b)) # 输出 tf.Tensor(0.75, shape=(), dtype=float32)
+
+```
+
+以上例子中的三个输出值相同，等于两个数组元素差的平方后取平均。将其中一个张量的形状改为(3,1)会怎么样呢？会报错吗？
+
+```python
+import tensorflow as tf
+
+a = tf.constant([1.5, 1.0, 2.0], dtype = 'float32')
+b = tf.constant([[1.0], [2.0], [3.0]], dtype = 'float32')
+mse = tf.keras.losses.MeanSquaredError()
+
+print(mse(a, b))
+print(mse(a.numpy(), b.numpy()))
+print(mse(a.numpy(), b))
+
+```
+
+答案是，不会。修改后输出如下：
+
+```python
+tf.Tensor(0.75, shape=(), dtype=float32)
+tf.Tensor(1.0833334, shape=(), dtype=float32)
+tf.Tensor(1.0833334, shape=(), dtype=float32)
+```
+
+输出结果不一样了！第一个输出是我们期望，后面则两个不是！
+
+<br/>
+
+# 实际场景
+我们稍后讨论为什么会这样，先讨论一下实际运用场景中，可能产生bug的情况。当模型的输出只有一个值的时候，模型的predict或者call方法会返回形状为(batch_size, 1)的张量。如果我们用pandas获取csv文件中的feature和label数据并计算损失，那么就容易产生的错误代码。
+
+```python
+import tensorflow as tf
+import pandas as pd
+
+# load or build some model
+model = build_or_load_model()
+
+# load data and compute loss
+df = pd.read_csv('data.csv')
+y_pred = model(df[['feature1', 'feature2']].values) # y_pred.shape = (batch_size, 1)
+y_true = df['label'].values # y_true.shape = (batch_size,)
+
+mse = tf.keras.losses.MeanSquaredError()
+print(mse(y_true, y_pred)) # 错误的损失值.
+
+```
+
+以上情况容易发生，是因为训练模型的fit函数，是允许如下调用：
+```python
+#...
+model.fit(x = df[['feature1', 'feature2']].values, y = df['label'].values, ...)
+#...
+```
+因此，我们容易想当然的以为可以直接将df['label'].values传给损失函数，结果导致bug。
+
+若想得到我们想要的结果，只需将y_true的形状改为(3,1)即可：
+```python
+#...
+y_true = np.reshape(df['label'].values, (-1, 1)) # y_true.shape = (batch_size,1)
+print(mse(y_true, y_pred)) # 正确的损失值.
+#...
+```
+
+<br/>
+
+# 原因
+那么，为什么损失函数对tensor和numpy输出会不一样呢？从tensorflow的代码里，我们很容易就找到原因。相关的代码在<a href="https://github.com/tensorflow/tensorflow/blob/a4dfb8d1a71385bd6d122e4f27f86dcebb96712d/tensorflow/python/keras/losses.py#L216">losses.py</a>文件的LossFunctionWrapper.call方法里：
+
+```python
+def call(self, y_true, y_pred):
+  # ...
+  if tensor_util.is_tf_type(y_pred) and tensor_util.is_tf_type(y_true):
+    y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(y_pred, y_true)
+  # ...
+```
+
+Tensorflow对损失函数的参数做了如下处理。当y_true和y_pred都是张量的时候，他们的维度会被压缩或者展开使得两者形状匹配。具体地说，当y_pred的形状为(batch_size, 1)时，tensorflow会将其压缩为(batch_size,)形状。反之，如果y_true和y_pred有一个不是张量，他们的维度就不会被压缩，而这种情况下，这两个张量会被broadcast成(batch_size, batch_size)形状，进而损失函数由以下错误的公式计算：
+
+{% raw %}
+$$
+\mathrm{Loss}\left(\mathrm{y\_true}, \mathrm{y\_pred}\right) = \frac{1}{\mathrm{batch\_size}^2}\sum_{i,j} \left(\mathrm{y\_pred}_{i} - \mathrm{y\_true}_{j}\right)^2
+$$
+{% endraw %}
+
+<br/>
+
+# Pytorch的情况
+Pytorch的损失函数不支持numpy数组类型，但对tensor类型也有类似的情况，我们同样要注意。
+
+```python
+import torch
+
+a = torch.tensor([1.5, 1.0, 2.0], dtype = torch.float32)
+b = torch.tensor([[1.0], [2.0], [3.0]], dtype = torch.float32)
+mse = torch.nn.MSELoss()
+
+print(mse(a, b)) # 输出 tensor(1.0833)
+print(mse(a, torch.squeeze(b, axis = -1))) # 输出 tensor(0.7500)
+```
