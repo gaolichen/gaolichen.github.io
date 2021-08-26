@@ -78,7 +78,7 @@ g_3(a,b,c) &= g (a+c,b)
 \end{aligned}
 $$
 {% endraw %}
-其中$g(a,b)$为任意可以表示成$a\cdot b$为自变量的函数。所以方程的解为
+其中$g(a,b)$为任意以$a\cdot b$为自变量的函数。所以方程的解为
 
 {% raw %}
 \begin{equation}
