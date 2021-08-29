@@ -80,5 +80,43 @@ Embedding models based on RNN architectures:
 - [Ying Luo et al.](https://ojs.aaai.org/index.php/AAAI/article/view/6363) (2020)
 
 ## 3. Context Encoder Module
+There are three commonly used model architectures for context encoder module, i.e., RNN, CNN and Transformers.
+
+### 3.1 RNN
+- [Huang et al.](https://arxiv.org/abs/1508.01991) (2015): Bi-LSTM to generate contextual representations of every word in their sequence labeling model.
+- [Rei](https://arxiv.org/abs/1704.07156) (2017): a multitask learning method that equips the Bi-LSTM context encoder module with a auxiliary training objective, which learns to predict surrounding words for every word in the sentence.
+- [Zhang et al.](https://arxiv.org/abs/1711.08231) (2017): a new method called Multi-Order BiLSTM which combines low order and high order LSTMs together in order to learn more tag dependencies.
+- [Ma et al.](https://arxiv.org/abs/1709.10191) (2017): a LSTM-based model for jointly training sentence-level classification and sequence labeling tasks, in which a modified LSTM structure is adopted as their context encoder module.
+- [Gregoric et al.](https://aclanthology.org/P18-2012/) (2018): a different architecture which employs multiple parallel independent Bi-LSTM units across the same input and promotes diversity among them by employing an inter-model regularization term.
+- [Kazi et al.](https://aclanthology.org/P17-2027/) (2017): a novel implicitly-defined neural network architecture by changing implicit hidden layer as:
+{% raw %}
+\begin{equation}
+h_t = f(\xi_{t}, h_{t-1}, h_{t+1})
+\end{equation}
+{% endraw %}
+
+- [Liu et al.](https://arxiv.org/abs/1906.02437) (2019): Deep transition RNNs which extends conventional RNNs by increasing the transition depth of consecutive hidden states
+- [Wei et al.](https://ui.adsabs.harvard.edu/abs/2021PatRe.11007636W/abstract) (2021): employs self-attention to provide complementary context information on the basis of Bi-LSTM.
+
+### 3.2 CNN
+- An initial work in this area is proposed by [Collobert et al.](https://www.jmlr.org/papers/volume12/collobert11a/collobert11a.pdf) (2011). [Santos et al.](http://proceedings.mlr.press/v32/santos14.pdf) (2014) follow their work and use similar structure for context feature extraction.
+- [Shen et al.](https://arxiv.org/abs/1707.05928) (2017): a deep active learning based model for NER tasks.
+- [Wang et al.](https://www.semanticscholar.org/paper/Named-Entity-Recognition-with-Gated-Convolutional-Wang-Chen/f35ada86f4f1e4e6c5e8aaf57d538a4e1d0584c5) (2017): stacked Gated Convolutional Neural Networks(GCNN) for named entity recognition, which extend the convolutional layer with gating mechanism. A gated convolutional layer can be written as 
+
+{% raw %}
+\begin{equation}
+F_{\mathrm{gating}}(\mathbf{X)} = (\mathbf{X} * \mathbf{W} + \hat{b})\odot \sigma(\mathbf{X} * \mathbf{V} + \hat{c})
+\end{equation}
+{% endraw %}
+where $*$ denotes row convolution, $\sigma$ is the sigmoid function and represents element-wise product, $\mathbf{X}$ is the input of this layer and the rests are parameters to be learned.
+
+- [Strubell et al.](https://arxiv.org/abs/1702.02098) (2017): Iterated Dilated Convolutional Neural Networks (ID-CNNs) method for the task of NER. [Dilated convolutions](https://arxiv.org/abs/1511.07122) (2015) operate on a sliding window of context like typical CNN layers, but the context need not be consecutive.
+
+| ![dilated-cnn](/assets/images/dilated-CNN.PNG){:class="img-responsive"} | 
+|:--:| 
+| A dilated CNN block with maximum dilation width 4 and filter width 3. Neurons contributing to a single highlighted neuron in the last layer are also highlighted |
+
+### 3.3 Transformer
+The Transformer is widely used in various NLP tasks and has achieved excellent results. However, in sequence labeling tasks, the Transformer encoder has been reported to perform poorly. Both the direction and relative distance information are important in the NER, but these information will lose when the sinusoidal position embedding is used in the vanilla Transformer. [Yan et al.](https://arxiv.org/abs/1911.04474) (2019) proposed TENER to address the issue.
 
 ## 4. Inference Module
