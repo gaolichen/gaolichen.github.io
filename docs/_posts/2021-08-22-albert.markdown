@@ -1,0 +1,37 @@
+---
+layout: post
+title: "ALBERT模型"
+date: 2021-08-22 16:28:00 +0800
+categories: NLP
+---
+
+[ALBERT](https://arxiv.org/abs/1909.11942) (A Lite BERT) 是一个轻量级的BERT模型。与原BERT模型相比，ALBERT使用更少的内存，却能在各个NLP任务中表现更优秀。
+
+| ![albert-results](/assets/images/albert-results.PNG){:class="img-responsive"} | 
+|:--:| 
+| BERT和ALBERT参数大小以及各个任务的跑分结果|
+
+
+ALBERT主要有三个方面的改进。
+
+# 1. 分解embedding层参数（Factorized embedding parameterization）
+
+BERT的embedding层参数是一个$V\times H$的矩阵，这里$V$是字典的大小，数量级通常是30000，$H$是隐藏层的大小（hidden size），数量级为$10^3$。由于V是个比较大的值，embedding层参数占用大量的内存空间。而为取得更忧的效果，通常需要更大的$H$值，导致模型占用内存大幅增加。
+<br/>
+
+在ALBERT中，这个大矩阵被分解为两个矩阵乘积，这两个矩阵的维度为$V \times E$和$E\times H$。这里$E$为embedding size，可以取较小的值。比如BERT中embedding层参数有$30000 \times 768 = 2.3\times 10^7$个，改进后，参数个数减少到$30000 \times 128 + 128 \times 768 = 4\times 10^6$。而且这个数不会随着$H$的增加而大幅增加。
+
+在代码实现上也很简单。将BERT的embedding层矩阵大小改为 $V \times E$，然后接一个输出大小为$H$的全链接层。
+
+# 2. 跨层共享参数 (Cross-layer parameter sharing)
+
+BERT的主层一般有12层或者24层，每层的参数不同。在ALBERT中这些层共享相同的参数。论文的作者，对每层的输入输出计算了$L2$距离和余弦相似，发现ALBERT的数据比BERT的更加温和，但不会收敛于0。
+
+| ![albert-L2-cosine](/assets/images/albert-L2-cosine.PNG){:class="img-responsive"} | 
+|:--:| 
+| BERT和ALBERT每层输入和输出的L2距离和余弦相似性。|
+
+# 3. 句子顺序判断（Sentence-Order Prediction）
+BERT模型的训练任务为Masked Language Model（MLM）和Next-Sentence Prediction (NSP)。MLM类似完形填空任务，用来训练模型理解一个句子中的词义。NSP任务用来判断两个句子是否上下句，以此来训练模型理解句子之间上下文的关系。但[Yang et al.](https://arxiv.org/abs/1904.00962)，[Liu et al.](https://arxiv.org/abs/1907.11692)等研究指出，NSP的训练效果并不理想。在实际训练中，大部分NSP判断结果取决于句子的主题是否一致。因而NSP训练变成更简单的判断主题的训练，导致模型无法理解句子间的更深的上下文关系，在natural language inference（NLI）任务中表现不佳。
+
+ALBERT弃用了NSP任务，而采用了句子顺序判断（Sentence-Order Prediction），即判断两句上下文是正序还是倒序。SOP使得模型真正理解上下文，而取得更好NLI任务结果。
