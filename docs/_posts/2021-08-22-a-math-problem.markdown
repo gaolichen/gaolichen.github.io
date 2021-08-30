@@ -9,12 +9,13 @@ categories: math
 {% raw %}
 \begin{equation}
 a \cdot b = a_1 b_2 - a_2 b_1
+\label{eq:dot_prod}
 \end{equation}
 {% endraw %}
 注意，这里的标积是反对称的。求解关于函数$f$的方程
 {% raw %}
 \begin{equation}
--f(a+b,c,d) e^{a\cdot b} + f(a,b+c,d) e^{b\cdot c} - f(a,b,c+d) e^{c\cdot d} + f(a+d,b,c) e^{-a\cdot d} = 0
+-f(a+b,c,d) e^{a\cdot b} + f(a,b+c,d) e^{b\cdot c} - f(a,b,c+d) e^{c\cdot d} + f(a+d,b,c) e^{d\cdot a} = 0
 \label{eq:equation}
 \end{equation}
 {% endraw %}
@@ -89,4 +90,16 @@ f(a,b,c) = g (a+b,c) e^{a \cdot b} - g (a,b+c) e^{b \cdot c} + g (a+c,b) e^{c \c
 
 以上就是求解平凡解的过程。任何可以表示为(\ref{eq:solution})形式的解都为平凡解。
 
-可能有些人会问，如果我们仍用“待定系数”法，但使用与(\ref{eq:ansatz})不同的解的形式，会不会得到另外的解呢？虽然我无法穷尽所有的解的形式，但一个大胆的猜想如下：任何令方程指数项“恰好”消除的解，都是形如(\ref{eq:solution})的解。我们求解平凡解的过程中，没有用到“向量在二维空间”这个条件，要获得非平凡解，我们必须要用这个条件。下次再写。
+可能有些人会问，如果我们仍用“待定系数”法，但使用与(\ref{eq:ansatz})不同的解的形式，会不会得到另外的解呢？比如让(\ref{eq:ansatz})中的每一项指数都为$a\cdot b, b\cdot c, c\cdot a$的线性组合，会怎么样呢？我们可能会得到看似不一样的结果，但其实都是(\ref{eq:solution})的特殊形式或者等价形式。虽然我无法穷尽所有的解的形式，但一个大胆的猜想如下：任何令方程指数项“恰好”消除的解，都是形如(\ref{eq:solution})的解。
+
+其实，我们求解平凡解的过程只用了标积(\ref{eq:dot_prod})的一个性质，分配律：
+{% raw %}
+$$
+\begin{aligned}
+a \cdot (b+c) &= a\cdot b + a\cdot c \\
+(a+b) \cdot c &= a\cdot c + b \cdot c
+\end{aligned}
+$$
+{% endraw %}
+
+平凡解的求解过程不需要标积的具体表达式，也不需要“向量在二维空间”这个条件，甚至不需要标积“反对称”这个性质。所以，这个解被称为“平凡解”也就不难理解了。而只有将这些性质用起来，我们才能获得非平凡解。
