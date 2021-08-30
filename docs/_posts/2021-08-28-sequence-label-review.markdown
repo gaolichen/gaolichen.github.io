@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Note on sequence labeling models"
-date: 2021-08-22 16:28:00 +0800
+date: 2021-08-28 16:28:00 +0800
 categories: math
 ---
 
