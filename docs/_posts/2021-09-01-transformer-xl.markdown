@@ -42,4 +42,17 @@ Transformer-XL引入了重现机制解决这个问题。每个片段的输入长
 
 ## 2. 相对位置编码 (Relative Positional Encodings)
 
-BERT模型的embedding层的输出既包含内容的embedding（word embedding）也包含位置编码（position encoding）。位置编码可以用矩阵$\mathbf{U}\in \mathbb{R}^{L_\mathrm{max}\times d}$表示。第$i$含元素$\mathbf{U}_i$表示第i位置的编码。
+BERT模型的embedding层的输出既包含内容的embedding（word embedding）也包含位置编码（position encoding）。位置编码可以用矩阵$\mathbf{U}\in \mathbb{R}^{L_\mathrm{max}\times d}$表示。第$i$含元素$\mathbf{U}_i$表示第i位置的编码。这种设计显然和重现机制不相容，因为这会导致前一个片段和后一个片段的位置编码相同。为解决这个问题，作者引入了相对位置编码。相对位置编码只在计算注意力分值的时候起作用。为了比较绝对位置编码和相对位置编码的区别，作者给除了两种编码计算注意力分值的公式。对于位置i的query和位置j的key，绝对编码和相对编码用如下公式计算注意力分值：
+
+| ![abs-positional-encoding](/assets/images/abs-positional-encoding.PNG){:class="img-responsive"} | ![rel-positional-encoding](/assets/images/rel-positional-encoding.PNG){:class="img-responsive"} |
+|:--:|:--:| 
+|绝对位置编码|相对位置编码|
+
+其中，$\mathbf{E}_{x_i}$为内容编码，$\mathbf{W}_q, \mathbf{W}_k$为可训练的矩阵参数。在(b)和(d)项中，$\mathbf{W} _k \mathbf{U} _j$被相对编码$\mathbf{R} _{i-j}$代替。$\mathbf{u},\mathbf{v}\in \mathbb{R}^d$为两个可训练的参数，与内容和位置均无关系。各项的意义如下：(a)项代表内容编码产生的注意力分值，(b)项代表和内容相关的位置偏移，(c)代表全局内容偏移，(d)代表全局的（内容无关的）位置偏移。
+
+
+将重现机制和相对位置编码结合起来，Transformer-XL的算法完整公式为
+
+| ![transformal-xl-alg](/assets/images/transformal-xl-alg.PNG){:class="img-responsive"} | 
+|:--:| 
+|Transformer-XL算法|
