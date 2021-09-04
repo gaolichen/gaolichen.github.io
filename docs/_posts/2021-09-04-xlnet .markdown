@@ -1,0 +1,33 @@
+---
+layout: post
+title: "XLNet模型"
+date: 2021-09-04 16:28:00 +0800
+categories: NLP
+---
+
+[XLNet](https://arxiv.org/abs/1906.08237)是Google和卡内基梅隆的研究人员提出的模型。
+
+在讲这个模型之前，我们先对非监督的自然语言模型做了简单的介绍。有两种比较成功的非监督语言模型，一种是autoregression（AR）语言模型，另一种是autoencoding（AE）语言模型。
+
+AR模型将语言看成单向的序列来学习其概率分布。具体地说，比如$\mathbf{x}=(x_1, ..., x_T)$是一个语言数列，AR模型将此序列的概率分解成forward product
+
+{% raw %}
+\begin{equation}
+p(\mathbf{x})=\prod _{t=1} ^T p(x_t | \mathbf{x} _{<t})
+\label{eq:forward_prod}
+\end{equation}
+{% endraw %}
+
+或者backward product
+{% raw %}
+\begin{equation}
+p(\mathbf{x})=\prod _{t=T} ^1 p(x_t | \mathbf{x} _{>t})
+\label{eq:backward_prod}
+\end{equation}
+{% endraw %}
+
+不管是那种AR模型，都只能处理单向的上下文关系，而要更深刻理解语言往往需要考虑双向上下文。
+
+另一方面AE语言模型并不直接预测概率分布，而是通过“完形填空”任务去学习。比如BERT模型，通过将输入语句中被[MASK]标记的词组还原来训练。这种方式的好处是可以理解双向的上下文，解决了AR语言中的单向问题。但AE模型也有自己的问题。模型需要通过微调对实际任务进行再学习，而微调的数据不包含[MASK]标积，这就产生了训练和微调的不一致性。再者，若一个输入包含多个[MASK]标识，BERT假设被[MASK]的词组是相互独立的，而这个假设往往是不正确的。举个简单的例子，如果"New York is a city."中New和York都替换成[MASK]，那么这两个被[MASK]的词显然不应该看成是独立的。
+
+待续。。
