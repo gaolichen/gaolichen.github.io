@@ -1,0 +1,117 @@
+---
+layout: post
+title: "Singular Value Decomposition (SVD)"
+date: 2021-09-04 16:28:00 +0800
+categories: math
+---
+
+一个$m\times n$的矩阵$\mathbf{W}$可以分解为
+{% raw %}
+\begin{equation}
+\mathbf{W} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^{\dagger}
+\label{eq:svd}
+\end{equation}
+{% endraw %}
+
+其中$\mathbf{\Sigma}$为$m\times n$为对角线元素为非负实数的对角矩阵，${\dagger}$符号代表取共轭转置，$\mathbf{U}$为$m\times m$的酉矩阵（unitary matrix）, $\mathbf{V}$为$n\times n$的酉矩阵，即：
+
+{% raw %}
+\begin{equation}
+\mathbf{U} ^{\dagger} \mathbf{U} = \mathbf{I} _{m} \quad \mathbf{V} ^{\dagger} \mathbf{V} = \mathbf{I} _{n}
+\end{equation}
+{% endraw %}
+
+{% raw %}
+\begin{equation}
+\mathbf{\Sigma}_{ii} = \sigma _{i} \geq 0, \quad \mathbf{\Sigma} _{ij} = 0, i \neq j
+\end{equation}
+{% endraw %}
+
+对任意矩阵，SVD分解是一定存在的，我们稍后给出证明。如果SVD存在，则一般不是唯一的：
+- $\mathbf{\Sigma}$对角线上的元素顺序可以任意调整，只要$\mathbf{U,V}$的列相应调整即可
+- 即使固定$\mathbf{\Sigma}$对角线上的元素顺序，我们可以对$\mathbf{U,V}$乘以任意一个模为1的复数$e^{i \theta}$
+
+
+为简单起见，我们约定$\sigma _i$的顺序总是从大到小排列，并且非0的元素的个数为$p \leq \mathrm{min}(m,n)$:
+
+{% raw %}
+\begin{equation}
+\sigma _1 \geq \sigma_2 \geq \cdots \geq \sigma _p > \sigma _{p+1} = ... = \sigma _{\mathrm{min}(m,n)} = 0
+\end{equation}
+{% endraw %}
+
+
+我们将相应的$\mathbf{U,V}$表示为列向量形式，
+{% raw %}
+\begin{equation}
+\mathbf{U} = (u_1, ..., u_p, ...) \quad \mathbf{V} = (v_1, ..., v_p, ...)
+\end{equation}
+{% endraw %}
+
+<br/>
+
+我们可以得到几个简单的性质。
+
+对用$i\leq p$，用$v_i$右乘($\ref{eq:svd}$)，可得到
+{% raw %}
+\begin{equation}
+\mathbf{W} v_i = \sigma_i u_i
+\end{equation}
+{% endraw %}
+
+对($\ref{eq:svd}$)两边取共轭转置后，用$u_i$右乘可以得到
+{% raw %}
+\begin{equation}
+\mathbf{W}^{\dagger} u_i = \sigma_i v_i
+\end{equation}
+{% endraw %}
+
+对($\ref{eq:svd}$)取共轭转置，然后左乘或者右乘自己，可以分别得到
+
+{% raw %}
+\begin{equation}
+\mathbf{W}^{\dagger} \mathbf{W} = \mathbf{V} \mathbf{\Sigma}^2 \mathbf{V} \quad \mathbf{W} \mathbf{W}^{\dagger} = \mathbf{U} \mathbf{\Sigma}^2 \mathbf{U}
+\end{equation}
+{% endraw %}
+
+即$\mathbf{U}, \mathbf{V}$分别对角化$\mathbf{W}^{\dagger} \mathbf{W}$和$\mathbf{W} \mathbf{W}^{\dagger}$，对应的本征值为$\sigma _i ^2$
+
+# 存在性证明
+我们只证明$\mathbf{W}$为实矩阵的情况。考虑$u,v$分为球面$S^{m-1}$和$S^{n-1}$上的点，定义
+
+{% raw %}
+\begin{equation}
+\sigma (u, v) = u^T \mathbf{W} v
+\end{equation}
+{% endraw %}
+
+因为$u, v$被限制在球面上，$\sigma$必存在最大值，不妨记为$\sigma_1$，对应的最大值点为$u_1, v_1$。用拉格朗日乘子法求极值点，我们可以将$\sigma(u,v)$写为
+
+{% raw %}
+\begin{equation}
+\sigma (u, v) = u^T \mathbf{W} v - \lambda_1 (u^T u - 1) - \lambda_2 (v^T v - 1)
+\end{equation}
+{% endraw %}
+
+分别对$u, v$求导，并令导数为0：
+
+{% raw %}
+\begin{equation}
+\mathbf{W} v_1 - 2 \lambda_1 u_1 = 0
+\end{equation}
+
+\begin{equation}
+\mathbf{W}^T u_1 - 2 \lambda_2 v_1 = 0
+\end{equation}
+{% endraw %}
+
+分别用$u^T, v^T$乘上式两端，我们得到$2\lambda _1 = 2\lambda_2 = \sigma_1$，即
+
+{% raw %}
+\begin{equation}
+\mathbf{W} v_1 = \sigma_1 u_1, \quad \mathbf{W}^T u_1 = \sigma_1 v_1
+\end{equation}
+{% endraw %}
+
+于是我们找到了两个满足SVD的向量。剩余的向量可以通过在$u_1, v_1$正交的空间内，最大化$\sigma(u,v)$得到。
+
