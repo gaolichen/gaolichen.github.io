@@ -7,7 +7,7 @@ categories: NLP
 
 [XLNet](https://arxiv.org/abs/1906.08237)是Google和卡内基梅隆的研究人员提出的模型。
 
-在讲这个模型之前，我们先对非监督的自然语言模型做了简单的介绍。有两种比较成功的非监督语言模型，一种是autoregression（AR）语言模型，另一种是autoencoding（AE）语言模型。
+在讲这个模型之前，我们先简单介绍两种非监督自然语言模型，一种是autoregression（AR）语言模型，另一种是autoencoding（AE）语言模型。
 
 AR模型将语言看成单向的序列来学习其概率分布。具体地说，比如$\mathbf{x}=(x_1, ..., x_T)$是一个语言数列，AR模型将此序列的概率分解成forward product
 

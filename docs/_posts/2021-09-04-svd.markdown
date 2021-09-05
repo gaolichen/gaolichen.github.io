@@ -5,7 +5,7 @@ date: 2021-09-04 16:28:00 +0800
 categories: math
 ---
 
-一个$m\times n$的矩阵$\mathbf{W}$可以分解为
+SVD分解是将一个$m\times n$的矩阵$\mathbf{W}$分解为
 {% raw %}
 \begin{equation}
 \mathbf{W} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^{\dagger}
