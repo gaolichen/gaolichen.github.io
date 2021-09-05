@@ -28,6 +28,98 @@ p(\mathbf{x})=\prod _{t=T} ^1 p(x_t | \mathbf{x} _{>t})
 
 不管是那种AR模型，都只能处理单向的上下文关系，而要更深刻理解语言往往需要考虑双向上下文。
 
-另一方面AE语言模型并不直接预测概率分布，而是通过“完形填空”任务去学习。比如BERT模型，通过将输入语句中被[MASK]标记的词组还原来训练。这种方式的好处是可以理解双向的上下文，解决了AR语言中的单向问题。但AE模型也有自己的问题。模型需要通过微调对实际任务进行再学习，而微调的数据不包含[MASK]标积，这就产生了训练和微调的不一致性。再者，若一个输入包含多个[MASK]标识，BERT假设被[MASK]的词组是相互独立的，而这个假设往往是不正确的。举个简单的例子，如果"New York is a city."中New和York都替换成[MASK]，那么这两个被[MASK]的词显然不应该看成是独立的。
+另一方面AE语言模型并不直接预测概率分布，而是通过“完形填空”任务去学习。比如BERT模型，学习时将输入语句中被[MASK]标记的词组还原。这种方式的好处是可以理解双向的上下文，解决了AR语言中的单向问题。但AE模型也有自己的问题。模型需要通过微调对实际任务进行再学习，而微调的数据不包含[MASK]标积，这就产生了训练和微调的不一致性。再者，若一个输入包含多个[MASK]标识，BERT假设被[MASK]的词组是相互独立的，而这个假设往往是不正确的。举个简单的例子，如果"New York is a city."中New和York都替换成[MASK]，那么这两个被[MASK]的词显然不应该看成是独立的。
 
-待续。。
+针对以上问题，XLNet做了以下改进。
+
+## 1. Permutation Language Model
+对一个长度为T的序列，有T阶乘种不同的排列组合。Permutation Language Model（PLM）的思想就是对每种排列组合都计算一次forward product，取平均概率。用数学语言描述，令$\mathcal{Z} _T$为所有排列组合的集合，$\mathbf{z}\in \mathcal{Z} _T$为任意一种排列组合，PLM的目标为一个平均概率的最大化，即
+
+{% raw %}
+\begin{equation}
+\underset{\theta}{\mathrm{max}} \; \mathbb{E} _{\mathbf{z} \sim \mathcal{Z} _T} \left[ \sum _{t=1} ^T \log p _{\theta}(x _{z_t} | \mathbf{x} _{\mathbf{z} < T}) \right]
+\label{eq:p_x}
+\end{equation}
+{% endraw %}
+
+需要说明一下，这里只是对词出现在forward product的顺序做排列组合，而词在文本中的实际位置不变。
+
+根据Transformer的标准架构，求($\ref{eq:p_x}$)表达式中的$p _{\theta}$时，标准的Softmax用以下方式预测$z_t$位置的词：
+{% raw %}
+\begin{equation}
+p _{\theta}(x _{z_t} | \mathbf{x} _{\mathbf{z} < T}) = \frac{\exp(e(x)^T h _{\theta}(\mathbf{x} _{\mathbf{z} < t}))}{\sum _{x^\prime} \exp(e(x ^{\prime})^T h _{\theta}(\mathbf{x} _{\mathbf{z} < t}))}
+\end{equation}
+{% endraw %}
+
+其中$e(x)$为词$x$的embedding表示，$h _{\theta}(\mathbf{x} _{\mathbf{z} < t})$ 为序列在最后一层$z _{t}$ 位置的输出。也就是说，$z _{t}$位置的输出，是由$\mathbf{z} < t$位置决定的。但根据我们的算法，确定$\mathbf{z} < t$后，$z_t$是可以取不同值的，这会导致不同的位置有相同的输出。为了避免这个问题，$z_t$必须为$h _{\theta}$的参数。因此，作者引入了$g _{\theta}$:
+{% raw %}
+\begin{equation}
+p _{\theta}(x _{z_t} | \mathbf{x} _{\mathbf{z} < T}) = \frac{\exp(e(x)^T g _{\theta}(\mathbf{x} _{\mathbf{z} < t}, z _t))}{\sum _{x^\prime} \exp(e(x ^{\prime})^T g _{\theta}(\mathbf{x} _{\mathbf{z} < t}, , z _t))}
+\label{eq:p_x_g}
+\end{equation}
+{% endraw %}
+
+
+### 1.1 Two-Stream Self-Attention
+但这样有带来一个新的问题：在第m层预测$z_t$位置的输出时，我们用了(\ref{eq:p_x_g})的表达式，相当于将$z _t$位置MASK掉，也就是$z _t$位置的输出不包含$x _{z _t}$的信息，但预测$z _{t+1}$位置的词的时候，我们需要一个包含$x _{z _t}$信息的(m-1)层的输出，这时就不能用$g _{\theta}$了。因此，对每个位置，我们需要保存两份输出，query stream $g _{\theta}(\mathbf{x} _{\mathbf{z} < t}, z _t)$和content stream $h _{\theta}(\mathbf{x} _{\mathbf{z} \leq t})$，前者只含$z _t$位置信息不包含内容信息，后者含位置和内容信息。为方便起见，我们将前者记为 $g _{z _t}$，后者记为 $h _{z _t}$。
+
+$g _{z _t}$ 和 $h _{z _t}$ 通过Attention机制计算，关于Attention机制参见本人的[另一篇博文](https://gaolichen.github.io/npl/2021/06/23/attention.html)。计算$g _{z _t}$ 时需要用到 $h _{z _t}$，计算第m层输出的公式如下：
+
+{% raw %}
+$$
+\begin{aligned}
+g_{z _t} ^{(m)} &\leftarrow \mathrm{Attention} (\mathbf{Q} = g _{z _t} ^{(m-1)}, \mathbf{KV}=\mathbf{h} ^{(m-1)} _\color{red}{\mathbf{z} _{< t}}; \theta) \\
+h_{z _t} ^{(m)} &\leftarrow \mathrm{Attention} (\mathbf{Q} = g _{z _t} ^{(m-1)}, \mathbf{KV}=\mathbf{h} ^{(m-1)} _\color{red}{\mathbf{z} _{\leq t}}; \theta)
+\end{aligned}
+$$
+{% endraw %}
+
+Two-Stream Self-Attention的架构如下入所示：
+
+| ![xlnet-two-stream-attension](/assets/images/xlnet-two-stream-attension.PNG){:class="img-responsive"} | 
+|:--:| 
+|Two-Stream Self-Attention的架构|
+
+上图中，(a)为constent stream Attention，和标准的Attention机制相同，(b)为query stream Attention，目标位置的内容不参与，(c)为模型架构总览。
+
+### 1.2 Partial Prediction
+排序的引入大大增加了算法的复杂性，使得模型收敛很慢。为了降低复杂性，对每一个排序，作者选择只对部分位置做预测。为此引入了一个参数K，只对最后1/K的位置做预测。令$c=|z|*(1 - 1/K)$，则模型的优化目标为，
+
+{% raw %}
+\begin{equation}
+\underset{\theta}{\mathrm{max}} \; \mathbb{E} _{\mathbf{z} \sim \mathcal{Z} _T} \left[ \log p _{\theta}(\mathbf{x} _{\mathbf{z} > c}| \mathbf{x} _{\mathbf{z} \leq c}) \right] = \mathbb{E} _{\mathbf{z} \sim \mathcal{Z} _T} \left[ \sum _{t=c+1} ^T \log p _{\theta}(x _{z_t} | \mathbf{x} _{\mathbf{z} < c}) \right]
+\label{eq:p_x_c}
+\end{equation}
+{% endraw %}
+
+
+## 2 结合Transformer-XL
+
+作者将Transformer-XL模型的思路整合到了XLNet模型中，这也是模型取名XLNet的原因。关于Transformer-XL的介绍，可参考本人的[另一博文](https://gaolichen.github.io/nlp/2021/09/01/transformer-xl.html)。
+
+
+Transfomer-XL的一个重要特性是可处理长文本的重现机制（recurrence mechanism）。重现机制包含了对上一个片段（segment）的缓存，这里只需缓存constent stream就可以，用$\tilde{h}$表示，那么$g _{z _t}, h _{z _t}$的计算公式变为：
+
+{% raw %}
+$$
+\begin{aligned}
+g_{z _t} ^{(m)} &\leftarrow \mathrm{Attention} (\mathbf{Q} = g _{z _t} ^{(m-1)}, \mathbf{KV}=\left[\tilde{\mathbf{h} ^{(m-1)}}, \mathbf{h} ^{(m-1)} _\color{red}{\mathbf{z} _{< t}}\right]; \theta) \\
+h_{z _t} ^{(m)} &\leftarrow \mathrm{Attention} (\mathbf{Q} = g _{z _t} ^{(m-1)}, \mathbf{KV}=\left[\tilde{\mathbf{h} ^{(m-1)}}, \mathbf{h} ^{(m-1)} _\color{red}{\mathbf{z} _{\leq t}}\right]; \theta)
+\end{aligned}
+$$
+{% endraw %}
+
+其中，$[.,.]$表示两个元素的拼接。
+
+### 2.1 相对片段编码（Relative Segment Encoding）
+
+XLNet模型简单移植了Transformer的相对位置编码设计。此外,XLNet将相对位置编码推广到相对片段编码。具体做法如下：两个位置i和j如果属于同一片段，则引入相对片段编码$\mathbf{s} _{ij} = \mathbf{s} _+$，否则$\mathbf{s} _{ij} = \mathbf{s} _-$，这里$\mathbf{s} _\pm$的维度等于模型的隐藏维度。计算i到j的attention时，在原来的attention权重上加了如下的值：
+{% raw %}
+\begin{equation}
+a _{ij} = \left(\mathbf{q} _i + \mathbf{b}\right)^T \mathbf{s} _{ij}
+\end{equation}
+{% endraw %}
+
+## 3 结果比较
+
+XLNet-base和XLNet-large采用了与BERT类似的12层和24层结构。在各个NLP任务上XLNet比BERT, RoBERTa表现都好，具体结果见[原论文](https://arxiv.org/abs/1906.08237)
