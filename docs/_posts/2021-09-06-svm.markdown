@@ -1,0 +1,282 @@
+---
+layout: post
+title: "支持向量机（Support Vector Machine）"
+date: 2021-09-06 16:28:00 +0800
+categories: math
+---
+
+这篇博文我们来谈谈SVM问题。网上一些文章讲SVM的时候，经常会用到凸优化理论就知识点，不熟悉凸优化的人会看得云里雾里。希望通过这篇博文，使不了解凸优化的人，也能完全理解SVM。
+
+## 1. 什么是SVM
+给定一组训练数据
+
+{% raw %}
+\begin{equation}
+(\mathbf{x} _1, y _1), ... , (\mathbf{x} _n, y _n),
+\label{eq:datasets}
+\end{equation}
+{% endraw %}
+
+其中$y _i$为label，取值为$+1$或者$-1$，$\mathbf{x} _i$为$p$维向量。支持向量机（SVM）的目标就是找到一个超平面将$y=1$的数据和$y=-1的数据$分割开来，并且最靠近超平面的点到超平面的距离最大。
+
+先简单讨论下超平面如何表示。在三维空间中，任意画一条通过原点的直线$w$，取$w$上的一点，我们就可以确定一个平面：这个平面垂直于$w$且经过给定的点。从原点指向平面上任意一点的向量，投射到$w$的长度相等，等于平面到原点的距离。同理，在n维空间，一条过原点的直线以及直线上的点，可以确定一个通过该点垂直于直线的超平面。如果这条直线的方向用$\mathbf{w}$表示，则超平面上的点$\mathbf{x}$满足
+
+{% raw %}
+\begin{equation}
+\mathbf{w} ^T \mathbf{x} - b = 0
+\end{equation}
+{% endraw %}
+
+$\mathbf{w}$为超平面的法向向量。如果向量$\mathbf{x}$在$\mathbf{w}$上的投影为$d$，则$\mathbf{w} ^T \mathbf{x} = d\lVert \mathbf{w} \rVert $。由超平面的方程，可得$d = \frac{b}{\lVert \mathbf{w} \rVert}$ 为超平面到原点的距离。
+
+回到SVM问题，现在有两种情况：（1）存在一个满足分割条件的超平面，这种情况称为hard-margin，（2）反之，不存在满足条件的超平面，这种情况只能用soft-margin来求解。
+
+### 1.1 Hard-margin
+在Hard-margin的情况下，我们可以找到两个分割数据的互相平行的超平面，一种标记的点（比如$y=1$）在超平面上方，另一种标记的点（比如$y=-1$）在超平面下方，而超平面之间没有数据。要使超平面之间距离最大，则每个超平面必然经过某一个边界点，如下图所示：
+
+| ![SVM_hard_margin](/assets/images/SVM_hard_margin.PNG){:class="img-responsive"} | 
+|:--:| 
+|hard-margin情况|
+
+这种情况下，两个超平面的方程总可以表示成
+
+{% raw %}
+\begin{equation}
+\mathbf{w} ^T \mathbf{x} - b = 1
+\label{eq:plane_1}
+\end{equation}
+
+\begin{equation}
+\mathbf{w} ^T \mathbf{x} - b = -1
+\label{eq:plane_2}
+\end{equation}
+{% endraw %}
+
+（如若不然，假设两个超平面的方程为$\mathbf{w} ^T \mathbf{x} - b _1 = 0$和$\mathbf{w} ^T \mathbf{x} - b _2 = 0$，我们用$\frac{2}{b _1 - b _2}$同时乘两个方程后，令$b=\frac{b2}{b1-b2}$，$\mathbf{w} \leftarrow 2\frac{\mathbf{w}}{b _1 - b _2} $，可得到(\ref{eq:plane_1}-\ref{eq:plane_2})。）
+
+经过这两个超平面的点称为支持向量（support vector）。两个平面的距离等于他们在$\mathbf{w}$方向的投影长度之差，即$\frac{2}{\lVert \mathbf{w} \rVert}$。为使这个距离最大化，SVM的目标变成使$\lVert \mathbf{w} \rVert$最小化。
+
+对所有的数据点，我们有以下不等式：
+{% raw %}
+\begin{equation}
+\mathbf{w} ^T \mathbf{x} _i - b \geq 1, \quad y _i = 1
+\label{eq:positive_eq}
+\end{equation}
+
+\begin{equation}
+\mathbf{w} ^T \mathbf{x} - b \leq -1, \quad y _i = -1
+\label{eq:negative_eq}
+\end{equation}
+{% endraw %}
+
+以上条件，可以合并写为
+{% raw %}
+\begin{equation}
+y _i (\mathbf{w} ^T \mathbf{x} _i - b) \geq 1
+\label{eq:combined_cond}
+\end{equation}
+{% endraw %}
+
+而SVM的目标可表示为
+
+{% raw %}
+\begin{equation}
+\mathrm{minimize}\; \lVert \mathbf{w} \rVert \quad \mathrm{s.t.} \quad y _i (\mathbf{w} ^T \mathbf{x} - b) \geq 1
+\label{eq:hard_margin}
+\end{equation}
+{% endraw %}
+
+求解(\ref{eq:hard_margin})，我们就得到一个SVM的分类器$\mathbf{x} \to \mathrm{sgn}(\mathbf{w} ^T - b)$。
+
+
+### 1.2 Soft-margin
+在soft-margin情况下，必然有一些点无法满足(\ref{eq:combined_cond})，于是我们引入损失函数
+
+{% raw %}
+\begin{equation}
+\max(0, 1 - y _i (\mathbf{w} ^T \mathbf{x} _i - b))
+\end{equation}
+{% endraw %}
+
+当数据点位于超平面$\mathbf{w} ^T \mathbf{x} _i - b = 0$正确的一边时，损失函数为0，否则为损失和该点距离超平面的距离成正比。那么，SVM的目标就是使平均的损失函数最小。同时，我们仍然希望$\lVert \mathbf{w} \rVert$在某种程度上最小化：试想，将若干不满足(\ref{eq:combined_cond})的点去掉，我们得到一个hard-margin的情况，这时我们的目标又变为使$\lVert \mathbf{w} \rVert$最小化。所以，兼顾两者的一个最小化目标为
+
+{% raw %}
+\begin{equation}
+\frac{1}{n} \left[\sum _{i=1} ^n \max(0, 1 - y _i (\mathbf{w} ^T \mathbf{x} _i - b)) \right] + \lambda {\lVert \mathbf{w} \rVert}^2
+\label{eq:loss_fun}
+\end{equation}
+{% endraw %}
+
+其中$\lambda$为一个正常数，代表多大程度上，我们允许一些点分布于超平面错误的一边。
+- 当$\lambda$趋于0的时候，${\lVert \mathbf{w} \rVert}^2$可以忽略不计，损失函数主要取决于第一项。意味着，只要有一个点分布于错误的一边，损失函数就会大幅的增加。因此，SVM将不计代价寻找满足hard-margin的情况。这会造成一个后果，如果数据含有一个被错误标注的噪点，SVM的解会被大幅度的影响。所以，hard-margin的解是不稳定的。
+- 当$\lambda$很大的时候，第一项变得不重要，${\lVert \mathbf{w} \rVert}^2$变得很重要。这表示，我们允许很多点分布于超平面的的错误一边，但是去掉这些错误的点之后，两组数据之间有个较大的分隔区域。也就说，被正确分类的数据，看上去非常得“泾渭分明”；而被错误分类的数据，我们对其“视而不见”。
+
+
+需要说明的是，hard-margin和soft-margin并不是互斥关系；而是，soft-margin是hard-margin的推广。我们应该总是选择用soft-margin的情况来求解S；而不是，当hard-margin不存在的时候，才用soft-margin来求解。原因如上面所说，hard-margin的解很容易被噪点影响。
+
+
+## 2 求解
+下面讲怎么求解SVM问题。很多文章讲这部分的时候，直接用了“对偶问题”，“KKT条件”等概念，如果读者不熟悉凸优化理论就会看得云里雾里。下面我尽可能通过一步步推导，来讲一下怎么求解。
+
+
+### 2.1 原问题
+为了求(\ref{eq:loss_fun})的最小值，我们引进变量
+
+{% raw %}
+\begin{equation}
+\zeta _i = \max(0, 1 - y _i (\mathbf{w} ^T \mathbf{x} _i - b))
+\label{eq:zeta}
+\end{equation}
+{% endraw %}
+
+则损失函数变为
+{% raw %}
+\begin{equation}
+f(\mathbf{w}, \zeta) = \frac{1}{n} \sum _{i=1} ^n \zeta _i + \lambda {\lVert \mathbf{w} \rVert}^2 
+\label{eq:f-w-zeta}
+\end{equation}
+{% endraw %}
+
+由(\ref{eq:zeta})可得约束条件
+{% raw %}
+\begin{equation}
+1 - y _i (\mathbf{w} ^T \mathbf{x} _i - b) - \zeta _i \leq 0, \quad \zeta _i \geq 0 \quad \forall i
+\label{eq:constraints}
+\end{equation}
+{% endraw %}
+
+为方便处理，我们将(\ref{eq:f-w-zeta})和越苏条件(\ref{eq:constraints})写成一个式子：我们将(\ref{eq:f-w-zeta})理解为满足约束条件下的损失函数，在不满足约束条件时，损失函数应为无穷大。
+{% raw %}
+$$
+\tilde{f}(\mathbf{w}, \zeta)=\begin{cases}
+f(\mathbf{w}, \zeta) & \text{满足约束条件} \\
++\infty & \text{不满足约束条件}
+\end{cases}
+$$
+{% endraw %}
+
+定义
+{% raw %}
+\begin{equation}
+L(\mathbf{w}, \zeta, \alpha, \beta) = \frac{1}{n} \sum _{i} \zeta _i + \lambda {\lVert \mathbf{w} \rVert}^2  + 2\lambda \sum _i \alpha _i \left[ 1 - y _i (\mathbf{w} ^T \mathbf{x} _i - b) - \zeta _i \right] - \sum _i \beta _i \zeta _i
+\label{eq:Lagrangian}
+\end{equation}
+{% endraw %}
+
+其中$2\lambda$是为方便后续处理引入的。我们可以将$\tilde{f}$改写为
+
+{% raw %}
+\begin{equation}
+\tilde{f}(\mathbf{w}, \zeta) = \max _{\alpha \geq 0, \beta \geq 0} \quad L(\mathbf{w}, \zeta, \alpha, \beta)
+\label{eq:tilde-f-L}
+\end{equation}
+{% endraw %}
+
+简单说明一下(\ref{eq:tilde-f-L})为什么成立：
+- 当严格满足约束条件时，即(\ref{eq:constraints})中的不等式不包括等号时，$\alpha _i = \beta _i = 0$使得$L$最大化，最大值为$f(\mathbf{w}, \zeta)$
+- 当(\ref{eq:constraints})中的不等式成为等式时，$\alpha _i, \beta _i$可以取任何非负数，$L$的最大值为$f(\mathbf{w}, \zeta)$
+- 当不满足约束条件时，比如 $\zeta _i < 0$，则$\beta _i$取无穷大，使得$L$变为无穷大。同理，如果$1 - y _i (\mathbf{w} ^T \mathbf{x} _i - b) - \zeta _i > 0$，则$\alpha _i$取无穷大
+
+综合以上，我们要求的极值为
+
+{% raw %}
+\begin{equation}
+p ^{*}= \min _{\mathbf{w}, b, \zeta} \max _{\alpha \geq 0, \beta \geq 0} \quad L(\mathbf{w}, b, \zeta, \alpha, \beta)
+\label{eq:prime}
+\end{equation}
+{% endraw %}
+
+我们将(\ref{eq:prime})称为原问题。
+
+### 2.2 对偶问题
+
+在原问题中，先取最大化再最小化，不方便处理。为此，我们引入对偶问题，对(\ref{eq:prime})右边，先最小化再最大化：
+{% raw %}
+\begin{equation}
+d ^{*}= \max _{\alpha \geq 0, \beta \geq 0} \min _{\mathbf{w}, b, \zeta} \quad L(\mathbf{w}, b, \zeta, \alpha, \beta)
+\label{eq:dual}
+\end{equation}
+{% endraw %}
+
+一般情况下$p ^{*}$和$d ^ { *}$是不相等的，且
+
+{% raw %}
+\begin{equation}
+p ^ {*} \geq d ^ { *}
+\end{equation}
+{% endraw %}
+
+在某些特定情况下$p ^{*} = d ^ { *}$，比如当原问题是凸优化问题且满足[Slater条件](https://en.wikipedia.org/wiki/Slater%27s_condition)时。这里不做详细讨论，但SVM的原问题满足这个条件。因此，可以通过求解对偶问题来求解SVM。
+
+定义
+
+{% raw %}
+\begin{equation}
+D(\alpha, \beta) = \min _{\mathbf{w}, b, \zeta} \quad L(\mathbf{w}, \zeta, b, \alpha, \beta)
+\end{equation}
+{% endraw %}
+
+假设，$L(\mathbf{w}, b, \zeta, \alpha, \beta)$的极值点在$(\mathbf{w} ^{*}, b ^{ *}, \zeta ^{ *})$，由$L$在极值点出导数为零，可得
+
+{% raw %}
+\begin{equation}
+\frac{\partial L}{\partial \mathbf{w} ^{ *}} = 0 \Rightarrow \mathbf{w} ^{ *} = \sum _i \alpha _i y _i \mathbf{x} _i
+\end{equation}
+
+\begin{equation}
+\frac{\partial L}{\partial b ^{ *}} = 0 \Rightarrow \sum _i \alpha _i y _i = 0
+\end{equation}
+
+\begin{equation}
+\frac{\partial L}{\partial \zeta _i ^{ *}} = 0 \Rightarrow \frac{1}{n} - 2\lambda \alpha _i - \beta _i = 0
+\label{eq:critical-cond}
+\end{equation}
+{% endraw %}
+
+于是我们得到
+
+{% raw %}
+\begin{equation}
+D(\alpha, \beta) = L(\mathbf{w} ^{ *}, b ^{ *}, \zeta ^{ *}, \alpha, \beta) = 2\lambda \left[-\frac{1}{2} \sum _{ij} \alpha _i (y _i \mathbf{x} _i ^T \mathbf{x} _j y _j) \alpha _j + \sum _i \alpha _i\right]
+\label{eq:D-alpha-beta}
+\end{equation}
+{% endraw %}
+
+$D(\alpha, \beta)$的表达式不包含$\beta$，因此我们可以将其写为$D(\alpha)$，另外$2\lambda$因子不会影响极值点的位置，可以扔掉。综合约束条件，对偶问题为
+
+{% raw %}
+\begin{equation}
+\text{maxmize } D(\alpha) = -\frac{1}{2} \sum _{ij} \alpha _i (y _i \mathbf{x} _i ^T \mathbf{x} _j y _j) \alpha _j + \sum _i \alpha _i
+\end{equation}
+
+\begin{equation}
+\text{subject to } \sum _i \alpha _i y _i = 0, \quad 0 \leq \alpha _i \leq \frac{1}{2n\lambda} \quad \forall i
+\label{eq:dual-constraint}
+\end{equation}
+{% endraw %}
+
+(\ref{eq:dual-constraint})中的第二个条件，来自于(\ref{eq:critical-cond})结合$\beta _i \geq 0$。求解对偶问题后，$\mathbf{w}$的值为
+
+{% raw %}
+\begin{equation}
+\mathbf{w} = \sum _i \alpha _i y _i \mathbf{x} _i
+\end{equation}
+{% endraw %}
+
+而$b$的值，可以利用落在超平面边界上的某点$\mathbf{x} _i$来求解
+
+{% raw %}
+\begin{equation}
+y _i (\mathbf{w} ^T \mathbf{x} _i - b) = 1 \Rightarrow b = \mathbf{w} ^T \mathbf{x} _i - y _i
+\end{equation}
+{% endraw %}
+
+以上用到了$y _i = \pm 1$的条件。
+
+那么，如何判定哪些点落在超平面上呢？我们很难从对偶问题找到答案，但是在原问题中很容易找到答案。由(\ref{eq:Lagrangian})以及(\ref{eq:tilde-f-L})下面的讨论，可以看出:
+
+- 当点落在边界超平面的正确的一边时，$\alpha _i = 0$
+- 当点落在两个边界超平面之间时，$\beta _i = 0$，由(\ref{eq:critical-cond})可得$\alpha _i = \frac{1}{2n\lambda}$
+- 当点落在边界超平面上时，$\beta _i$可以为正数，由(\ref{eq:critical-cond})可得$0 < \alpha _i < \frac{1}{2n\lambda}$
+
+所以，当$\alpha _i$为小于$\frac{1}{2n\lambda}$的正数的时候，$\mathbf{x} _i$为落在边界超平面上的点。
