@@ -1,11 +1,11 @@
 ---
 layout: post
-title: "支持向量机（Support Vector Machine）"
+title: "支持向量机（Support Vector Machine）的数学原理"
 date: 2021-09-06 16:28:00 +0800
 categories: math
 ---
 
-这篇博文我们来谈谈SVM问题。网上一些文章讲SVM的时候，经常会用到凸优化理论就知识点，不熟悉凸优化的人会看得云里雾里。希望通过这篇博文，使不了解凸优化的人，也能完全理解SVM。
+这篇博文我们来谈谈SVM问题。网上一些文章讲SVM的时候，经常会用到凸优化理论的知识点，不熟悉凸优化的人会看得云里雾里。希望通过这篇博文，使不了解凸优化的人，也能完全理解SVM。本文主要参考了[wikipedia](https://en.wikipedia.org/wiki/Support-vector_machine)，以及[mit](https://ocw.mit.edu/courses/sloan-school-of-management/15-097-prediction-machine-learning-and-statistics-spring-2012/lecture-notes/MIT15_097S12_lec11.pdf)和[cmu](http://www.stat.cmu.edu/~ryantibs/convexopt-F16/scribes/kkt-scribed.pdf)网上两篇关于有关凸优化理论的笔记。另外加了很多本人自己的理解。
 
 ## 1. 什么是SVM
 给定一组训练数据
