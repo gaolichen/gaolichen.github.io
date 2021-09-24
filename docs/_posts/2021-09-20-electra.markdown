@@ -1,0 +1,73 @@
+---
+layout: post
+title: "ELECTRA模型"
+date: 2021-09-20 16:28:00 +0800
+categories: NLP
+---
+
+[ELECTRA](https://arxiv.org/abs/2003.10555)模型是由Google和Stanford的研究人员提出的NLP模型。ELECTRA的全称是Efficiently Learning an Encoder that Classifies Token Replacements Accurately。
+
+BERT模型的主要训练方法是Masked Language Modeling：输入文本中15%的token被替换为[MASK]或随机token，模型的任务是将这些被替换的token复原。因此，对每一个输入，BERT只能学习到大约15%的“知识”，或者说，BERT的“学习效率”只有15%。
+
+如何提高这个“学习效率”呢？简单地将15%提高到20%或者30%是不行的。被替换的token越多，学习的难度就越大，到一定程度，模型的训练将变成“无效学习”。举个极端的例子，如果将100%的token都替换掉，BERT只能“学到”每个词在文本中的出现频率，而无法学到诸如语法等有用的“知识”。15%应该是BERT的研究人员通过实验得到的平衡“学习效率”和“学习难度”的一个较优值。
+
+ELECTRA模型使用了一种新的学习方法将“学习效率”从15%提升至100%。
+
+## 1 预训练方法
+预训练时，模型由两个神经网络组成，一个是MLM生成器G，另外一个是判定器D。生成器的输入和常规的MLM模型输入一样，即部分token被替换成[MASK]的文本，生成器的输出是“复原”后的文本，当然某些token可能被“复原”成错误的token。判定器的任务是做一个二元分类，判断每一个token是否和原文中对应的token一致。训练的基本流程如下图所示：
+
+| ![electra](/assets/images/electra.PNG){:class="img-responsive"} | 
+|:--:| 
+|ELECTRA训练方法|
+
+预训练完成后，针对下游任务的微调只需要用到判定器，生成器可以被丢弃。这个学习流程使得每一个token都能被用来学习，因而提高了“学习效率”。下图给出了ELECTRA和其他NLP模型训练计算量和GLUE分值的比较，可以明显看出ELECTRA用了较少的计算量获得了较高的GLUE分值。
+
+| ![electra train efficiency](/assets/images/electra-train-efficiency.PNG){:class="img-responsive"} | 
+|:--:| 
+|ELECTRA的训练计算量和GLUE分值|
+
+
+同时，该流程解决了BERT的另一个问题：训练时BERT的输入包含[MASK]，但下游任务的输入不包含[MASK]。ELECTRA（判定器部分）的输入在训练时和微调时是一致。
+
+### 1.1 损失函数
+
+预训练时的损失函数等于生成器的损失函数和判定器的损失函数之和。用$\mathbf{x} = [x _1, x _2, ..., x _n]$表示一个输入，$\theta _G, \theta _D$表示生成模型和判定模型的参数，则ELECTRA的目标为：
+
+{% raw %}
+\begin{equation}
+\underset{\theta _G, \theta _D}{\mathrm{min}} \sum _{\mathbf{x} \in \mathcal{X} } \mathcal{L} _{\mathrm{MLM}} (\mathbf{x}, \theta _G) + \lambda \mathcal{L} _{\mathrm{Disc} _{\mathrm{MLM}} (\mathbf{x}, \theta _D)}
+\label{eq:objective}
+\end{equation}
+{% endraw %}
+
+其中$\mathcal{X}$为所有的输入文本集合，$\lambda$为一正常数（实际取值50），生成器和判定器的损失函数为常规的交叉熵损失。
+
+
+## 2 一些改进
+实验中生成器和判定器都为BERT模型，两者的层数（number of layers）都一样，但是隐藏层大小（hidden size）不一样。文章作者提出了一些改进模型的方法。
+
+### 2.1 权重共享
+
+一个提升与训练效率的方法是共享生成器和判定器的权重。如果生成器和判定器模型大小（隐藏层大小）一致，所有的权重都可以共享。但是，文章作者发现，使用较小的生成器能得到更好的学习效果（见下一小节）。因此，文章作者建议只将两者的embedding层共享。具体做法：使用判定器的embeding权重（较大），在生成器中，添加一个线性层将判定器的embedding权重投射到和生成器大小匹配的权重。
+
+### 2.2 较小的生成器
+使用较小的生成器有两个优点。首先，较小的生成器减少了预训练计算量，提升了预训练效率。其次，较小的生成器能获得更好的学习效果。文章作者对此有两个解释（猜想）。1）较大的生成器使得判定器的学习难度加大，影响学习效果。2）较大的生成器导致判定器使用大量的参数去拟合生成器本身，而不是文本数据。文章作者建议生成器大小为判定器的1/4到1/2。
+
+
+## 3 性能分析
+
+为了研究哪些改进对提高ELECTRA的性能作用更大，文章作者试验了三个对比模型。
+- ELECTRA 15%: 和ELECTRA一样的模型，但是判定器的损失函数只计算被[MASK]替换的部分token的损失。
+- Replace MLM: 和基于BERT的MLM模型一样，区别在于用一个生成器产生的token替换部分文本token，而不是用[MASK]替换。
+- All-Tokens MLM: 和Replace MLM类似，用生成器生成的token替换部分文本token。区别在于对每个token都计算损失函数。模型的输出token由如下方式产生：对每一个token，用一个sigmoid层产生一个概率p，如果p小于D，拷贝输入token，否则输出用MLM softmax层产生的token。这个模型相当于BERT和ELECTRA的结合：sigmoid层模拟ELECTRA的判定器输出，MLM softmax层模拟BERT MLM的输出。
+
+以上三个模型和ELECTRA以及BERT的比较结果如下：
+
+| ![electra efficiency](/assets/images/electra-efficiency.PNG){:class="img-responsive"} | 
+|:--:| 
+|性能比较|
+
+从上图可以看出
+- ELECTRA 15%分值差ELECTRA较多（2.6）：说明对所有token计算损失函数对模型性能的提升帮助很大。
+- Replace MLM分值只比BERT提高0.2：说明预训练微调不一致性对模型的性能影响不大。其实BERT采取了一些策略解决这个问题，比如有10%的概率，原本要被替换成[MASK]的token并没有被替换。
+- All-Tokens MLM的结果非常接近ELECTRA：说明ELECTRA模型性能提升主要源于对<b>所有</b>token的学习。
